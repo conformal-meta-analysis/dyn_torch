@@ -2,6 +2,7 @@
 
 export(baltest.collect)
 export(ebal_torch)
+export(eb)
 export(ebalance)
 export(ebalance.trim)
 export(getsquares)
