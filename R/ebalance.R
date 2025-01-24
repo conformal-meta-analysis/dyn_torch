@@ -136,8 +136,8 @@ ebalance = function(Treatment,
     # control units matrix with intercept
     co.x = X[Treatment == 0, ]
     co.x = cbind(rep(1, ncontrols), co.x)
-    if (qr(co.x)$rank != ncol(co.x))
-      stop("collinearity in covariate matrix for controls (remove collinear covariates)")
+    # if (qr(co.x)$rank != ncol(co.x))
+    #   stop("collinearity in covariate matrix for controls (remove collinear covariates)")
     # target moments - sum instead of mean for numerical stability?
     tr.total = apply(as.matrix(X[Treatment == 1, , drop = FALSE]), 2, sum)
     if (is.null(norm.constant)) norm.constant = ntreated
