@@ -1,4 +1,4 @@
-Package: ebal_torch_kmk
+Package: ebalTorchkmk
 Type: Package
 Title: Entropy Reweighting to Create Balanced Samples
 Version: 0.2
