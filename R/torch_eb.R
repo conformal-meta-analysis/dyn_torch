@@ -1,40 +1,63 @@
-#' ebal implementation with autodiff via torch
+#' Modified entropy balancing implementation with autodiff via torch
 #' @param X0 donor units matrix
 #' @param X1 target moments
-#' @param base_weight base weight vector
-#' @return list with weights and coefficients
+#' @param kappa regularization parameter
+#' @return list with optimized weights
 #' @import torch
 #' @export
-ebal_torch = function(X0, X1, base_weight = NULL, maxit = 200) {
-  if (is.null(base_weight)) base_weight = rep(1, nrow(X0))
-  inp = list(x0 = torch_tensor(X0), x1 = torch_tensor(X1), q = torch_tensor(base_weight))
-  # loss fn returns tensor
-  ebal_loss_torch = function(lambda) {
-    inner_sum = inp$q$dot(torch_exp(-1 * torch_matmul(inp$x0, lambda)))
-    loss_value = torch_log(inner_sum) + torch_matmul(lambda, inp$x1)
+entropy_balance_torch = function(X0, X1, kappa, maxit = 200) {
+  n <- nrow(X0)
+  d <- ncol(X0)
+
+  inp = list(
+    x0 = torch_tensor(X0),
+    x1 = torch_tensor(X1),
+    n = n
+  )
+
+  # Define loss function
+  ebal_loss_torch = function(theta, eta) {
+    W <- torch_softmax(theta, dim = 1) # Reparameterize W
+    lambda <- torch_log1p(eta)         # Reparameterize lambda
+
+    # Compute moment imbalance
+    moment_imbalance <- torch_max(
+      torch_abs(torch_matmul(W$t(), inp$x0) - torch_mean(inp$x0, dim = 1))
+    )
+
+    # Compute divergence term
+    uniform_dist <- torch_full_like(W, 1 / n)
+    divergence <- torch_sum(W * torch_log(W / uniform_dist))
+
+    # Full loss
+    loss <- moment_imbalance + lambda * divergence + kappa / (lambda * torch_sqrt(torch_tensor(n)))
+    loss
   }
-  # gradient - autograd
-  loss_grad = function(lambda) {
-    lambda_ad = torch_tensor(lambda, requires_grad = TRUE)
-    loss = ebal_loss_torch(lambda_ad)
-    grad = autograd_grad(loss, lambda_ad)[[1]]
-    as.numeric(grad)
+
+  # Gradient computation with autograd
+  loss_grad = function(params) {
+    theta = torch_tensor(params[1:n], requires_grad = TRUE)
+    eta = torch_tensor(params[n + 1], requires_grad = TRUE)
+
+    loss = ebal_loss_torch(theta, eta)
+    grad = autograd_grad(loss, list(theta, eta))
+
+    c(as.numeric(grad[[1]]), as.numeric(grad[[2]]))
   }
-  # call optim - fn needs to have numeric output
-  coefs = optim(
-    fn = function(x) as.numeric(ebal_loss_torch(x)),
-    gr = loss_grad, par = rep(1, ncol(X0)),
+
+  # Optimization using BFGS
+  init_params <- c(rep(0, n), 0.1) # Initialize theta and eta
+
+  opt_result = optim(
+    fn = function(x) as.numeric(ebal_loss_torch(torch_tensor(x[1:n]), torch_tensor(x[n + 1]))),
+    gr = loss_grad, par = init_params,
     method = "BFGS",
     control = list(maxit = maxit)
-  )$par
-  # extract weights from lagrangian
-  wts = exp(-1 * as.matrix(inp$x0) %*% coefs)
-  wts = wts / sum(wts) # normalise
-  # return
-  return(
-    list(
-      coefs = coefs,
-      Weights.ebal = wts
-    )
   )
+
+  # Recover W from optimized theta
+  theta_opt <- torch_tensor(opt_result$par[1:n])
+  W_opt <- torch_softmax(theta_opt, dim = 1)$numpy()
+
+  list(Weights = W_opt)
 }
