@@ -17,17 +17,17 @@ ebal_torch = function(X0, X1, kappa, maxit = 200) {
 
   # Define loss function
   ebal_loss_torch = function(theta, eta) {
-    W <- torch_softmax(theta, dim = 1) # Reparameterize W
+    Weights <- torch_softmax(theta, dim = 1) # Reparameterize Weights
     lambda <- torch_log1p(eta)         # Reparameterize lambda
 
     # Compute moment imbalance
     moment_imbalance <- torch_max(
-      torch_abs(torch_matmul(W$t(), inp$x0) - torch_mean(inp$x0, dim = 1))
+      torch_abs(torch_matmul(Weights$t(), inp$x0) - torch_mean(inp$x0, dim = 1))
     )
 
     # Compute divergence term
-    uniform_dist <- torch_full_like(W, 1 / n)
-    divergence <- torch_sum(W * torch_log(W / uniform_dist))
+    uniform_dist <- torch_full_like(Weights, 1 / n)
+    divergence <- torch_sum(Weights * torch_log(Weights / uniform_dist))
 
     # Full loss
     loss <- moment_imbalance + lambda * divergence + kappa / (lambda * torch_sqrt(torch_tensor(n)))
