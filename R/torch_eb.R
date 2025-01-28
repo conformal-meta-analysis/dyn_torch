@@ -5,7 +5,7 @@
 #' @return list with optimized weights
 #' @import torch
 #' @export
-function (X0, X1, kappa, maxit = 200) 
+ebal_torch = function (X0, X1, kappa, maxit = 200) 
 {
     n <- nrow(X0)
     d <- ncol(X0)
