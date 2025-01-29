@@ -15,7 +15,7 @@ ebal_torch = function (X0, X1, kappa, maxit = 200)
         Weights <- nnf_softmax(theta, dim = 1)
         lambda <- torch_log1p(eta)
         moment_imbalance <- torch_max(torch_abs(torch_matmul(Weights$t(), 
-            inp$x0) - torch_mean(inp$x0, dim = 1)))
+            inp$x0) - inp$x1))
         uniform_dist <- torch_full_like(Weights, 1/n)
         divergence <- torch_sum(Weights * torch_log(Weights/uniform_dist))
         loss <- moment_imbalance + lambda * divergence + kappa/(lambda * 
